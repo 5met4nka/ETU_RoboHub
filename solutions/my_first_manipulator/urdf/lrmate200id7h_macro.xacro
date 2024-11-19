@@ -1,0 +1,298 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find fanuc_resources)/urdf/common_materials.xacro"/>
+
+  <xacro:macro name="fanuc_lrmate200id7h">
+
+    <material name="blue">
+      <color rgba="0 0 0.8 1"/>
+    </material>
+
+    <material name="white">
+      <color rgba="1 1 1 1"/>
+    </material>
+
+
+    <link name="base">
+      <visual>
+        <origin xyz="0 0 0.025" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.05" radius="0.2"/>
+        </geometry>
+        <material name="blue"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.025" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.05" radius="0.2"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="base_2_link_0" type="fixed">
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <parent link="base"/>
+      <child link="link_0"/>
+    </joint>
+
+    <link name="link_0">
+      <visual>
+        <origin xyz="0 0 0.075" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.15" radius="0.07"/>
+        </geometry>
+        <material name="white"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.075" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.15" radius="0.07"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="joint_1" type="revolute">
+      <origin xyz="0 0 0.150" rpy="0 0 0" />
+      <parent link="link_0" />
+      <child link="link_1" />
+      <axis xyz="0 0 1" />
+      <limit effort="0" lower="${radians(-170)}" upper="${radians(170)}" velocity="${radians(370)}" />
+    </joint>
+
+    <link name="link_1">
+      <visual>
+        <origin xyz="0 0 0.075" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.15" radius="0.07"/>
+        </geometry>
+        <material name="blue"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.075" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.15" radius="0.07"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="joint_2" type="revolute">
+      <origin xyz="0 0 0.150" rpy="0 0 0"/>
+      <parent link="link_1" />
+      <child link="link_2" />
+      <axis xyz="-1 0 0" />
+      <limit effort="0" lower="${radians(-50)}" upper="${radians(100)}" velocity="${radians(310)}" />
+    </joint>
+
+    <link name="link_2">
+      <visual>
+        <origin xyz="0 0 0.150" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.12 0.12 0.3"/>
+        </geometry>
+        <material name="white"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.150" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.12 0.12 0.3"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="joint_3" type="revolute">
+      <origin xyz="0 0 0.3" rpy="0 0 0"/>
+      <parent link="link_2" />
+      <child link="link_3" />
+      <axis xyz="-1 0 0" />
+      <limit effort="0" lower="${radians(-70)}" upper="${radians(100)}" velocity="${radians(410)}" />
+    </joint>
+
+    <link name="link_3">
+      <visual>
+        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.1" radius="0.05"/>
+        </geometry>
+        <material name="blue"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.1" radius="0.05"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="joint_4" type="revolute">
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <parent link="link_3"/>
+      <child link="link_4"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="0" lower="${radians(-190)}" upper="${radians(190)}" velocity="${radians(550)}" />
+    </joint>
+
+    <link name="link_4">
+      <visual>
+        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.1" radius="0.05"/>
+        </geometry>
+        <material name="white"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.05" rpy="0 0 0"/>
+        <geometry>
+          <cylinder length="0.1" radius="0.05"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="joint_5" type="revolute">
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <parent link="link_4"/>
+      <child link="link_5"/>
+      <axis xyz="-1 0 0"/>
+      <limit effort="0" lower="${radians(-125)}" upper="${radians(125)}" velocity="${radians(545)}" />
+    </joint>
+
+    <link name="link_5">
+      <visual>
+        <origin xyz="0 0 0.040" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.08 0.08 0.08"/>
+        </geometry>
+        <material name="blue"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0.040" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.08 0.08 0.08"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="joint_6" type="revolute">
+      <origin xyz="0.0 0 0.080" rpy="0 ${radians(-90)} 0"/>
+      <parent link="link_5"/>
+      <child link="flange"/>
+      <axis xyz="-1 0 0"/>
+      <limit effort="0" lower="${radians(-360)}" upper="${radians(360)}" velocity="${radians(1000)}" />
+    </joint>
+
+    <link name="flange"/>
+
+    <joint name="flange_2_tool" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <parent link="flange" />
+      <child link="toolb" />
+    </joint>
+
+    <link name="toolb"> 
+      <visual>
+        <origin xyz="0.035 0 0" rpy="0 ${radians(-90)} 0" />
+        <geometry>
+          <cylinder length="0.07" radius="0.04"/>
+        </geometry>
+        <material name="t">
+          <color rgba="0.1 0.6 0.81 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0.035 0 0" rpy="0 ${radians(-90)} 0" />
+        <geometry>
+          <cylinder length="0.07" radius="0.02"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1" />
+        <inertia
+          ixx="1"
+          ixy="1"
+          ixz="1"
+          iyy="1"
+          iyz="1"
+          izz="1" />
+      </inertial>
+    </link>
+
+    <joint name="toolb_2_tool_0" type="fixed">
+      <origin xyz="0.07 0 0" rpy="0 0 0" />
+      <parent link="toolb" />
+      <child link="tool_0" />
+    </joint>
+
+    <link name="tool_0"> 
+      <visual>
+        <origin xyz="0.02 0 0" rpy="0 ${radians(-90)} 0" />
+        <geometry>
+          <box size="0.04 0.04 0.04"/>
+        </geometry>
+        <material name="t_0">
+          <color rgba="0.1 0.8 0.81 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0.02 0 0" rpy="0 ${radians(-90)} 0" />
+        <geometry>
+          <box size="0.04 0.04 0.04"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="linear_L" type="prismatic">
+      <origin xyz="0.04 -0.035 0" rpy="0 0 0" />
+      <parent link="tool_0" />
+      <child link="leftfinger" />
+      <axis xyz="0 1 0"/>
+      <limit effort="100" lower="0" upper="0.01" velocity="0.2" />
+    </joint>
+
+    <link name="leftfinger">
+      <visual>
+        <origin xyz="0.025 0.0025 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.05 0.005 0.05" />
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0.025 0.0025 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.05 0.005 0.05" />
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="linear_R" type="prismatic">
+      <origin xyz="0.04 0.035 0" rpy="0 0 0" />
+      <parent link="tool_0" />
+      <child link="rightfinger" />
+      <axis xyz="0 -1 0"/>
+      <limit effort="100" lower="0" upper="0.01" velocity="0.2" />
+    </joint>
+
+    <link name="rightfinger">
+      <visual>
+        <origin xyz="0.025 -0.0025 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.05 0.005 0.05" />
+        </geometry>
+      </visual>
+      <collision>
+        <origin xyz="0.025 -0.0025 0" rpy="0 0 0" />
+        <geometry>
+          <box size="0.05 0.005 0.05" />
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="toolb_2_TCP" type="fixed">
+      <origin xyz="0.16 0 0" rpy="0 0 0" />
+      <parent link="toolb" />
+      <child link="TCP" />
+    </joint>
+
+    <link name="TCP" />
+
+  </xacro:macro>
+</robot>
