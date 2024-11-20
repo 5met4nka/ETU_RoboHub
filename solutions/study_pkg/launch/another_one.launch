@@ -1,0 +1,5 @@
+<launch>
+    <node name="listener_cpp" pkg="rospy_tutorials" type="listener" output="screen">
+        <remap from="chatter" to="new_topic"/>
+    </node>
+</launch>

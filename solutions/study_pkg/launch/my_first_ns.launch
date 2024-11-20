@@ -1,0 +1,6 @@
+<launch>
+    <group ns="new_ns">
+        <node name="receiver" pkg="rospy_tutorials" type="listener.py" output="screen"/>
+        <node name="sender" pkg="rospy_tutorials" type="talker.py" output="screen"/>
+    </group>
+</launch>

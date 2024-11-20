@@ -1,0 +1,10 @@
+<launch>
+    <arg name="new_topic_name" default="new_chatter" />
+
+    <node name="listener" pkg="rospy_tutorials" type="listener.py" output="screen">
+        <remap from="chatter" to="$(arg new_topic_name)"/>
+    </node>
+    <node name="talker" pkg="rospy_tutorials" type="talker.py" output="screen">
+        <remap from="chatter" to="$(arg new_topic_name)"/>
+    </node>
+</launch>

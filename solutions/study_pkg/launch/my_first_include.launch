@@ -1,0 +1,7 @@
+<launch>
+    <group ns="new_ns">
+        <include file="$(find study_pkg)/launch/another_one.launch" />
+    </group>
+    <node name="listener" pkg="rospy_tutorials" type="listener.py" output="screen"/>
+    <node name="talker" pkg="rospy_tutorials" type="talker.py" output="screen"/>
+</launch>

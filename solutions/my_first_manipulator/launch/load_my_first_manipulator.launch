@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- load robot_description -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find my_first_manipulator)/urdf/my_first_manipulator.urdf'" />
+  <!-- publish /joint_states for robot_state_publisher node -->
+  <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" output="screen"/>
+  <!-- publish tf from robot_description -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen"/>
+  <!-- rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find my_first_manipulator)/rviz/first.rviz" />
+</launch>
