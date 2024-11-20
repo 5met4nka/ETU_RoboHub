@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <!-- load robot_description -->
-  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find my_first_manipulator)/urdf/lrmate200id7h.xacro'" />
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find my_first_manipulator)/urdf/my_first_manipulator.urdf'" />
   <!-- publish /joint_states for robot_state_publisher node -->
   <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui" output="screen"/>
   <!-- publish tf from robot_description -->
