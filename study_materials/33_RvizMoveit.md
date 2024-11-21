@@ -218,7 +218,4 @@
 
 ## Последующие уроки
 
-- **Контроль робота на C++:** ознакомьтесь с [Move Group C++ Interface](../move_group_interface/move_group_interface_tutorial.html).  
-- **Контроль робота на Python:** ознакомьтесь с [Move Group Python Interface](../move_group_python_interface/move_group_python_interface_tutorial.html).  
-- **Создание пакета конфигурации MoveIt:** ознакомьтесь с [Setup Assistant](../setup_assistant/setup_assistant_tutorial.html).  
-- **Сохранение и восстановление состояний робота:** ознакомьтесь с [warehouse_ros](../persistent_scenes_and_states/persistent_scenes_and_states.html).  
+- **Контроль робота на Python:** ознакомьтесь с [Move Group Python Interface](../move_group_python_interface/move_group_python_interface_tutorial.
