@@ -1,46 +1,5 @@
 #!/usr/bin/env python
 
-# Software License Agreement (BSD License)
-#
-# Copyright (c) 2013, SRI International
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above
-#    copyright notice, this list of conditions and the following
-#    disclaimer in the documentation and/or other materials provided
-#    with the distribution.
-#  * Neither the name of SRI International nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-#
-# Author: Acorn Pooley, Mike Lautman
-
-## BEGIN_SUB_TUTORIAL imports
-##
-## To use the Python MoveIt interfaces, we will import the `moveit_commander`_ namespace.
-## This namespace provides us with a `MoveGroupCommander`_ class, a `PlanningSceneInterface`_ class,
-## and a `RobotCommander`_ class. More on these below. We also import `rospy`_ and some messages that we will use:
-##
-
 # Python 2/3 compatibility imports
 from __future__ import print_function
 from six.moves import input
@@ -66,509 +25,617 @@ except:  # For Python 2 compatibility
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 
-## END_SUB_TUTORIAL
-
 
 def all_close(goal, actual, tolerance):
     """
-    Convenience method for testing if the values in two lists are within a tolerance of each other.
-    For Pose and PoseStamped inputs, the angle between the two quaternions is compared (the angle
-    between the identical orientations q and -q is calculated correctly).
-    @param: goal       A list of floats, a Pose or a PoseStamped
-    @param: actual     A list of floats, a Pose or a PoseStamped
-    @param: tolerance  A float
-    @returns: bool
+    Утилитарная функция для проверки, находятся ли значения из двух списков в пределах указанной допустимой погрешности.
+    Для входных данных типа Pose и PoseStamped сравнивается угол между двумя кватернионами
+    (угол между одинаковыми ориентациями q и -q рассчитывается корректно).
+
+    @param goal: Список чисел с плавающей точкой, объект Pose или объект PoseStamped.
+                 Это целевое значение, с которым сравнивается "actual".
+    @param actual: Список чисел с плавающей точкой, объект Pose или объект PoseStamped.
+                   Это фактическое значение, которое сравнивается с "goal".
+    @param tolerance: Число с плавающей точкой, представляющее допустимую погрешность.
+    @returns: Логическое значение (bool): True, если значения соответствуют заданной точности; иначе False.
     """
+
+    # Если цель и фактические значения представлены в виде списка чисел:
     if type(goal) is list:
+        # Проверяем каждый элемент списка. Если разница превышает допустимую погрешность, возвращаем False.
         for index in range(len(goal)):
             if abs(actual[index] - goal[index]) > tolerance:
                 return False
 
+    # Если цель и фактические значения представлены в виде объектов PoseStamped:
     elif type(goal) is geometry_msgs.msg.PoseStamped:
+        # Рекурсивно вызываем эту функцию, передавая pose части объектов PoseStamped для сравнения.
         return all_close(goal.pose, actual.pose, tolerance)
 
+    # Если цель и фактические значения представлены в виде объектов Pose:
     elif type(goal) is geometry_msgs.msg.Pose:
+        # Преобразуем объекты Pose в списки координат (позиция и ориентация в формате кватернионов).
         x0, y0, z0, qx0, qy0, qz0, qw0 = pose_to_list(actual)
         x1, y1, z1, qx1, qy1, qz1, qw1 = pose_to_list(goal)
-        # Euclidean distance
+        
+        # Рассчитываем Евклидово расстояние между точками в 3D-пространстве.
         d = dist((x1, y1, z1), (x0, y0, z0))
-        # phi = angle between orientations
+        
+        # Рассчитываем угол между ориентациями (косинус половинного угла между кватернионами).
         cos_phi_half = fabs(qx0 * qx1 + qy0 * qy1 + qz0 * qz1 + qw0 * qw1)
+        
+        # Проверяем два условия:
+        # 1. Евклидово расстояние между позициями должно быть меньше или равно допустимой погрешности.
+        # 2. Косинус половинного угла должен быть больше или равен косинусу половины допустимого угла.
         return d <= tolerance and cos_phi_half >= cos(tolerance / 2.0)
 
+    # Если ни одно из условий выше не выполнено (неизвестный тип данных), возвращаем True.
     return True
 
 
 class MoveGroupPythonInterfaceTutorial(object):
-    """MoveGroupPythonInterfaceTutorial"""
+    """Класс для управления роботом с использованием MoveIt! и Move Group интерфейса.
+    Предназначен для демонстрации базового функционала MoveIt! в Python."""
 
     def __init__(self):
         super(MoveGroupPythonInterfaceTutorial, self).__init__()
 
-        ## BEGIN_SUB_TUTORIAL setup
-        ##
-        ## First initialize `moveit_commander`_ and a `rospy`_ node:
+        ## Инициализация MoveIt! Commander и ROS-ноды:
+        # MoveIt! Commander управляет роботами, группами и сценой с помощью MoveIt API.
+        # rospy используется для взаимодействия с ROS-системой.
         moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node("move_group_python_interface_tutorial", anonymous=True)
 
-        ## Instantiate a `RobotCommander`_ object. Provides information such as the robot's
-        ## kinematic model and the robot's current joint states
+        # Создание объекта `RobotCommander`, который предоставляет информацию
+        # о кинематической модели робота и текущих состояниях его сочленений (joint states).
         robot = moveit_commander.RobotCommander()
 
-        ## Instantiate a `PlanningSceneInterface`_ object.  This provides a remote interface
-        ## for getting, setting, and updating the robot's internal understanding of the
-        ## surrounding world:
+        # Создание объекта `PlanningSceneInterface`, который предоставляет интерфейс
+        # для взаимодействия с планировочной сценой, включая добавление и удаление объектов.
         scene = moveit_commander.PlanningSceneInterface()
 
-        ## Instantiate a `MoveGroupCommander`_ object.  This object is an interface
-        ## to a planning group (group of joints).  In this tutorial the group is the primary
-        ## arm joints in the Panda robot, so we set the group's name to "panda_arm".
-        ## If you are using a different robot, change this value to the name of your robot
-        ## arm planning group.
-        ## This interface can be used to plan and execute motions:
-        group_name = "panda_arm"
+        # Создание объекта `MoveGroupCommander`, который управляет группой суставов.
+        # В этом примере группа суставов именуется "panda_arm".
+        # Для другого робота необходимо указать соответствующую группу.
+        group_name = "panda_arm"  # Название группы планирования для робота.
         move_group = moveit_commander.MoveGroupCommander(group_name)
 
-        ## Create a `DisplayTrajectory`_ ROS publisher which is used to display
-        ## trajectories in Rviz:
+        # Создание ROS-публишера для отображения траекторий в Rviz.
+        # Это позволяет визуализировать спланированные траектории.
         display_trajectory_publisher = rospy.Publisher(
-            "/move_group/display_planned_path",
-            moveit_msgs.msg.DisplayTrajectory,
-            queue_size=20,
+            "/move_group/display_planned_path",  # Топик для публикации траекторий.
+            moveit_msgs.msg.DisplayTrajectory,   # Тип сообщения для отображения траекторий.
+            queue_size=20                        # Размер очереди сообщений.
         )
 
-        ## END_SUB_TUTORIAL
-
-        ## BEGIN_SUB_TUTORIAL basic_info
+        ## Получение базовой информации о роботе
         ##
-        ## Getting Basic Information
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^
-        # We can get the name of the reference frame for this robot:
+        # Получение системы координат (reference frame), используемой для планирования движений:
         planning_frame = move_group.get_planning_frame()
         print("============ Planning frame: %s" % planning_frame)
 
-        # We can also print the name of the end-effector link for this group:
+        # Получение имени звена манипулятора, отвечающего за взаимодействие с объектами:
         eef_link = move_group.get_end_effector_link()
         print("============ End effector link: %s" % eef_link)
 
-        # We can get a list of all the groups in the robot:
+        # Получение списка всех доступных групп планирования у робота:
         group_names = robot.get_group_names()
         print("============ Available Planning Groups:", robot.get_group_names())
 
-        # Sometimes for debugging it is useful to print the entire state of the
-        # robot:
+        # Вывод текущего состояния робота для отладки:
         print("============ Printing robot state")
-        print(robot.get_current_state())
+        print(robot.get_current_state())  # Печатает полное состояние робота.
         print("")
-        ## END_SUB_TUTORIAL
 
-        # Misc variables
-        self.box_name = ""
-        self.robot = robot
-        self.scene = scene
-        self.move_group = move_group
-        self.display_trajectory_publisher = display_trajectory_publisher
-        self.planning_frame = planning_frame
-        self.eef_link = eef_link
-        self.group_names = group_names
+        # Прочие переменные
+        # Инициализация переменных для хранения информации о сцене и роботах.
+        self.box_name = ""  # Имя объекта, добавленного в сцену.
+        self.robot = robot  # Экземпляр RobotCommander.
+        self.scene = scene  # Экземпляр PlanningSceneInterface.
+        self.move_group = move_group  # Экземпляр MoveGroupCommander.
+        self.display_trajectory_publisher = display_trajectory_publisher  # Публишер для отображения траекторий.
+        self.planning_frame = planning_frame  # Система координат планирования.
+        self.eef_link = eef_link  # Звено конечного эффектора.
+        self.group_names = group_names  # Список групп планирования.
 
     def go_to_joint_state(self):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        """
+        Функция для перемещения робота в заданное состояние суставов (joint state).
+        Используется MoveIt для планирования и выполнения движения робота.
+
+        @return: True, если конечное состояние робота близко к заданному (в пределах погрешности 0.01).
+        """
+
+        # Локальная копия объекта управления Move Group для упрощения понимания кода в веб-уроках.
+        # На практике можно использовать self.move_group напрямую, если нет специфической причины иначе.
         move_group = self.move_group
 
-        ## BEGIN_SUB_TUTORIAL plan_to_joint_state
         ##
-        ## Planning to a Joint Goal
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^
-        ## The Panda's zero configuration is at a `singularity <https://www.quora.com/Robotics-What-is-meant-by-kinematic-singularity>`_, so the first
-        ## thing we want to do is move it to a slightly better configuration.
-        ## We use the constant `tau = 2*pi <https://en.wikipedia.org/wiki/Turn_(angle)#Tau_proposals>`_ for convenience:
-        # We get the joint values from the group and change some of the values:
-        joint_goal = move_group.get_current_joint_values()
-        joint_goal[0] = 0
-        joint_goal[1] = -tau / 8
-        joint_goal[2] = 0
-        joint_goal[3] = -tau / 4
-        joint_goal[4] = 0
-        joint_goal[5] = tau / 6  # 1/6 of a turn
-        joint_goal[6] = 0
+        ## Планирование движения к заданным значениям суставов
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Начальная конфигурация Panda-робота является сингулярной, поэтому первым шагом
+        ## мы переводим его в более безопасное и удобное состояние.
 
-        # The go command can be called with joint values, poses, or without any
-        # parameters if you have already set the pose or joint target for the group
+        # Получаем текущие значения суставов (joint states) из Move Group.
+        joint_goal = move_group.get_current_joint_values()
+
+        # Устанавливаем целевые значения для суставов:
+        joint_goal[0] = 0                     # Угол для первого сустава.
+        joint_goal[1] = -tau / 8              # Угол для второго сустава (-π/4).
+        joint_goal[2] = 0                     # Угол для третьего сустава.
+        joint_goal[3] = -tau / 4              # Угол для четвертого сустава (-π/2).
+        joint_goal[4] = 0                     # Угол для пятого сустава.
+        joint_goal[5] = tau / 6               # Угол для шестого сустава (π/3).
+        joint_goal[6] = 0                     # Угол для седьмого сустава.
+
+        # Передаем целевые значения суставов в планировщик MoveIt.
+        # Метод `go()` инициирует движение к заданным значениям.
+        # Аргумент `wait=True` означает, что выполнение функции будет заблокировано
+        # до завершения движения.
         move_group.go(joint_goal, wait=True)
 
-        # Calling ``stop()`` ensures that there is no residual movement
+        # Останавливаем любое остаточное движение робота, если оно есть.
+        # Это полезно для предотвращения дрожания или незапланированного движения.
         move_group.stop()
 
-        ## END_SUB_TUTORIAL
-
-        # For testing:
+        # Тестирование:
+        # Получаем текущие значения суставов после выполнения движения.
         current_joints = move_group.get_current_joint_values()
+        
+        # Сравниваем текущие значения суставов с целевыми значениями.
+        # Функция `all_close` проверяет, находятся ли значения в пределах заданной погрешности (0.01).
         return all_close(joint_goal, current_joints, 0.01)
 
     def go_to_pose_goal(self):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        """
+        Функция для планирования и выполнения движения манипулятора к заданной целевой позе
+        (позиции и ориентации) конечного эффектора.
+
+        @return: True, если конечное состояние робота близко к целевой позе (в пределах погрешности 0.01).
+        """
+
+        # Локальная копия объекта управления Move Group для упрощения понимания кода в веб-уроках.
+        # На практике можно использовать self.move_group напрямую, если нет специфической причины иначе.
         move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL plan_to_pose
         ##
-        ## Planning to a Pose Goal
-        ## ^^^^^^^^^^^^^^^^^^^^^^^
-        ## We can plan a motion for this group to a desired pose for the
-        ## end-effector:
-        pose_goal = geometry_msgs.msg.Pose()
-        pose_goal.orientation.w = 1.0
-        pose_goal.position.x = 0.4
-        pose_goal.position.y = 0.1
-        pose_goal.position.z = 0.4
+        ## Планирование движения к целевой позе
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Можно спланировать движение этой группы суставов для достижения
+        ## желаемой позы конечного эффектора (end-effector).
 
+        # Создаем объект Pose, задающий целевую позу.
+        pose_goal = geometry_msgs.msg.Pose()
+        pose_goal.orientation.w = 1.0  # Кватернион для ориентации (ориентация без поворота).
+        pose_goal.position.x = 0.4     # Координата x целевой позиции.
+        pose_goal.position.y = 0.1     # Координата y целевой позиции.
+        pose_goal.position.z = 0.4     # Координата z целевой позиции.
+
+        # Устанавливаем целевую позу для Move Group.
         move_group.set_pose_target(pose_goal)
 
-        ## Now, we call the planner to compute the plan and execute it.
-        # `go()` returns a boolean indicating whether the planning and execution was successful.
+        # Планировщик рассчитывает траекторию и выполняет движение.
+        # Метод `go()` возвращает True, если планирование и выполнение прошли успешно.
         success = move_group.go(wait=True)
-        # Calling `stop()` ensures that there is no residual movement
+
+        # Останавливаем остаточное движение, чтобы избежать дрожания или других неконтролируемых эффектов.
         move_group.stop()
-        # It is always good to clear your targets after planning with poses.
-        # Note: there is no equivalent function for clear_joint_value_targets().
+
+        # Очищаем целевые позы после завершения движения.
+        # Это рекомендуется делать после планирования с использованием целевых поз,
+        # чтобы избежать конфликтов в последующих вызовах.
         move_group.clear_pose_targets()
 
-        ## END_SUB_TUTORIAL
-
-        # For testing:
-        # Note that since this section of code will not be included in the tutorials
-        # we use the class variable rather than the copied state variable
+        # Для тестирования:
+        # Получаем текущую позу конечного эффектора.
         current_pose = self.move_group.get_current_pose().pose
+
+        # Сравниваем текущую позу с целевой позой.
+        # Функция `all_close` проверяет, находятся ли текущие значения в пределах заданной погрешности (0.01).
         return all_close(pose_goal, current_pose, 0.01)
 
     def plan_cartesian_path(self, scale=1):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        """
+        Планирование траектории в декартовом пространстве для конечного эффектора.
+        В этой функции задается последовательность промежуточных точек, которые должен пройти
+        конечный эффектор, и рассчитывается соответствующая траектория.
+
+        @param scale: Масштаб движения (умножается на каждое смещение для изменения амплитуды).
+        @return: Кортеж (plan, fraction), где:
+            - plan: Запланированная траектория.
+            - fraction: Доля успешно интерполированных точек траектории (от 0 до 1).
+        """
+
+        # Локальная копия объекта управления Move Group для удобства.
         move_group = self.move_group
 
-        ## BEGIN_SUB_TUTORIAL plan_cartesian_path
         ##
-        ## Cartesian Paths
-        ## ^^^^^^^^^^^^^^^
-        ## You can plan a Cartesian path directly by specifying a list of waypoints
-        ## for the end-effector to go through. If executing  interactively in a
-        ## Python shell, set scale = 1.0.
-        ##
+        ## Декартовы траектории
+        ## ^^^^^^^^^^^^^^^^^^^^
+        ## Можно планировать декартовую траекторию, задавая список промежуточных точек (waypoints),
+        ## через которые должен пройти конечный эффектор.
+
+        # Список промежуточных точек, которые нужно пройти.
         waypoints = []
 
+        # Получаем текущую позу конечного эффектора.
         wpose = move_group.get_current_pose().pose
-        wpose.position.z -= scale * 0.1  # First move up (z)
-        wpose.position.y += scale * 0.2  # and sideways (y)
-        waypoints.append(copy.deepcopy(wpose))
 
-        wpose.position.x += scale * 0.1  # Second move forward/backwards in (x)
-        waypoints.append(copy.deepcopy(wpose))
+        # Первая точка: смещаем конечный эффектор вверх по оси z и в сторону по оси y.
+        wpose.position.z -= scale * 0.1  # Подъем/опускание (z).
+        wpose.position.y += scale * 0.2  # Смещение в сторону (y).
+        waypoints.append(copy.deepcopy(wpose))  # Добавляем копию текущей позы в список.
 
-        wpose.position.y -= scale * 0.1  # Third move sideways (y)
-        waypoints.append(copy.deepcopy(wpose))
+        # Вторая точка: смещаем конечный эффектор вперед/назад по оси x.
+        wpose.position.x += scale * 0.1  # Смещение вперед/назад (x).
+        waypoints.append(copy.deepcopy(wpose))  # Добавляем копию текущей позы в список.
 
-        # We want the Cartesian path to be interpolated at a resolution of 1 cm
-        # which is why we will specify 0.01 as the eef_step in Cartesian
-        # translation.  We will disable the jump threshold by setting it to 0.0,
-        # ignoring the check for infeasible jumps in joint space, which is sufficient
-        # for this tutorial.
+        # Третья точка: возвращаем конечный эффектор немного назад по оси y.
+        wpose.position.y -= scale * 0.1  # Смещение в противоположную сторону (y).
+        waypoints.append(copy.deepcopy(wpose))  # Добавляем копию текущей позы в список.
+
+        # Планирование декартовой траектории:
+        # compute_cartesian_path вычисляет траекторию, проходящую через указанные промежуточные точки.
+        # eef_step (0.01) задает разрешение интерполяции (шаг 1 см).
+        # jump_threshold (0.0) отключает проверку на недопустимые резкие изменения положения суставов.
         (plan, fraction) = move_group.compute_cartesian_path(
-            waypoints, 0.01  # waypoints to follow  # eef_step
+            waypoints,  # Список промежуточных точек.
+            0.01,       # Шаг интерполяции в метрах.
+            0.0         # Порог "прыжка" в пространстве суставов (отключен).
         )
 
-        # Note: We are just planning, not asking move_group to actually move the robot yet:
+        # Примечание: на данном этапе мы только планируем движение, а не выполняем его.
         return plan, fraction
 
-        ## END_SUB_TUTORIAL
 
     def display_trajectory(self, plan):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        """
+        Функция для отображения запланированной траектории в Rviz.
+        Использует ROS-публишер для публикации траектории, которая затем визуализируется в Rviz.
+
+        @param plan: Запланированная траектория (объект, возвращаемый MoveIt).
+        """
+
+        # Локальные копии объектов для упрощения кода (опционально).
         robot = self.robot
         display_trajectory_publisher = self.display_trajectory_publisher
 
-        ## BEGIN_SUB_TUTORIAL display_trajectory
         ##
-        ## Displaying a Trajectory
-        ## ^^^^^^^^^^^^^^^^^^^^^^^
-        ## You can ask RViz to visualize a plan (aka trajectory) for you. But the
-        ## group.plan() method does this automatically so this is not that useful
-        ## here (it just displays the same trajectory again):
-        ##
-        ## A `DisplayTrajectory`_ msg has two primary fields, trajectory_start and trajectory.
-        ## We populate the trajectory_start with our current robot state to copy over
-        ## any AttachedCollisionObjects and add our plan to the trajectory.
+        ## Отображение траектории
+        ## ^^^^^^^^^^^^^^^^^^^^^^
+        ## Вы можете попросить Rviz визуализировать запланированную траекторию.
+        ## Однако метод `group.plan()` делает это автоматически, поэтому эта функция
+        ## полезна для явного повторного отображения траектории или когда визуализация
+        ## требуется отдельно.
+
+        # Создаем объект сообщения DisplayTrajectory, который предназначен
+        # для отображения траектории в Rviz.
         display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+
+        # Поле trajectory_start заполняется текущим состоянием робота.
+        # Это позволяет скопировать любые связанные объекты (например, захваченные объекты),
+        # чтобы они также отображались корректно.
         display_trajectory.trajectory_start = robot.get_current_state()
+
+        # Добавляем запланированную траекторию (plan) в список траекторий.
         display_trajectory.trajectory.append(plan)
-        # Publish
+
+        # Публикуем сообщение DisplayTrajectory в топик.
+        # После публикации Rviz автоматически отображает траекторию.
         display_trajectory_publisher.publish(display_trajectory)
 
-        ## END_SUB_TUTORIAL
 
     def execute_plan(self, plan):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        """
+        Функция для выполнения запланированной траектории роботом.
+        Использует метод `execute()` для передачи роботу рассчитанного плана.
+
+        @param plan: Запланированная траектория (объект RobotTrajectory, возвращаемый MoveIt).
+        """
+
+        # Локальная копия объекта управления Move Group для удобства (опционально).
         move_group = self.move_group
 
-        ## BEGIN_SUB_TUTORIAL execute_plan
         ##
-        ## Executing a Plan
-        ## ^^^^^^^^^^^^^^^^
-        ## Use execute if you would like the robot to follow
-        ## the plan that has already been computed:
+        ## Выполнение плана
+        ## ^^^^^^^^^^^^^^^^^
+        ## Используйте метод `execute()`, если хотите, чтобы робот следовал
+        ## траектории, которая уже была рассчитана.
+
+        # Выполняем план, передавая его в метод `execute`.
+        # Аргумент `wait=True` означает, что выполнение функции будет заблокировано
+        # до завершения выполнения всей траектории.
         move_group.execute(plan, wait=True)
 
-        ## **Note:** The robot's current joint state must be within some tolerance of the
-        ## first waypoint in the `RobotTrajectory`_ or ``execute()`` will fail
-        ## END_SUB_TUTORIAL
+        ## **Примечание:** Текущее состояние суставов робота должно находиться
+        ## в пределах допустимой погрешности от первого waypoint в траектории.
+        ## Если это условие не выполнено, выполнение `execute()` завершится ошибкой.
 
-    def wait_for_state_update(
-        self, box_is_known=False, box_is_attached=False, timeout=4
-    ):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+    def wait_for_state_update(self, box_is_known=False, box_is_attached=False, timeout=4):
+        """
+        Ожидает обновления состояния сцены, чтобы убедиться, что изменения (например,
+        добавление, удаление, привязка или отвязка объектов) были корректно отражены в планировочной сцене.
+
+        @param box_is_known: Логическое значение, указывающее, ожидается ли, что объект "box"
+                            будет известен (существует в списке известных объектов).
+        @param box_is_attached: Логическое значение, указывающее, ожидается ли, что объект "box"
+                                будет прикреплен к роботу.
+        @param timeout: Максимальное время ожидания обновления состояния (в секундах).
+        @return: True, если обновление состояния было получено в пределах времени ожидания; иначе False.
+        """
+
+        # Локальная копия имени объекта и сцены для удобства.
         box_name = self.box_name
         scene = self.scene
 
-        ## BEGIN_SUB_TUTORIAL wait_for_scene_update
         ##
-        ## Ensuring Collision Updates Are Received
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## If the Python node was just created (https://github.com/ros/ros_comm/issues/176),
-        ## or dies before actually publishing the scene update message, the message
-        ## could get lost and the box will not appear. To ensure that the updates are
-        ## made, we wait until we see the changes reflected in the
-        ## ``get_attached_objects()`` and ``get_known_object_names()`` lists.
-        ## For the purpose of this tutorial, we call this function after adding,
-        ## removing, attaching or detaching an object in the planning scene. We then wait
-        ## until the updates have been made or ``timeout`` seconds have passed.
-        ## To avoid waiting for scene updates like this at all, initialize the
-        ## planning scene interface with  ``synchronous = True``.
+        ## Убедитесь, что обновления сцены получены
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Если Python-нода была только что создана или завершила работу до публикации
+        ## обновлений сцены, сообщения могут быть утеряны, и объект "box" не появится.
+        ## Чтобы гарантировать обновления, мы ожидаем, пока изменения не отразятся
+        ## в списках ``get_attached_objects()`` и ``get_known_object_names()``.
+
+        # Отслеживаем начальное время ожидания.
         start = rospy.get_time()
         seconds = rospy.get_time()
+
+        # Цикл ожидания обновления состояния.
         while (seconds - start < timeout) and not rospy.is_shutdown():
-            # Test if the box is in attached objects
+            # Проверяем, прикреплен ли объект "box".
             attached_objects = scene.get_attached_objects([box_name])
             is_attached = len(attached_objects.keys()) > 0
 
-            # Test if the box is in the scene.
-            # Note that attaching the box will remove it from known_objects
+            # Проверяем, известен ли объект "box" в сцене.
+            # Если объект прикреплен, он будет удален из списка известных объектов.
             is_known = box_name in scene.get_known_object_names()
 
-            # Test if we are in the expected state
+            # Проверяем, совпадает ли текущее состояние с ожидаемым.
             if (box_is_attached == is_attached) and (box_is_known == is_known):
-                return True
+                return True  # Состояние обновлено до ожидаемого.
 
-            # Sleep so that we give other threads time on the processor
+            # Даем другим потокам время для выполнения и обновления.
             rospy.sleep(0.1)
-            seconds = rospy.get_time()
+            seconds = rospy.get_time()  # Обновляем текущее время.
 
-        # If we exited the while loop without returning then we timed out
+        # Если цикл завершился без возврата, значит, время ожидания истекло.
         return False
-        ## END_SUB_TUTORIAL
 
     def add_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
+        """
+        Функция для добавления объекта (коробки) в планировочную сцену.
+        Объект создается в указанной позиции и добавляется с помощью интерфейса планировочной сцены.
+
+        @param timeout: Максимальное время ожидания обновления состояния сцены (в секундах).
+        @return: True, если объект успешно добавлен в сцену в течение указанного времени.
+        """
+
+        # Локальные копии переменных для удобства понимания в веб-уроках.
+        # На практике можно использовать self.box_name и self.scene напрямую.
         box_name = self.box_name
         scene = self.scene
 
-        ## BEGIN_SUB_TUTORIAL add_box
         ##
-        ## Adding Objects to the Planning Scene
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## First, we will create a box in the planning scene between the fingers:
+        ## Добавление объектов в планировочную сцену
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Сначала создаем объект коробки в сцене. Коробка будет расположена
+        ## в заданной позиции относительно фрейма "panda_hand".
+
+        # Создаем объект PoseStamped для задания положения и ориентации коробки.
         box_pose = geometry_msgs.msg.PoseStamped()
-        box_pose.header.frame_id = "panda_hand"
-        box_pose.pose.orientation.w = 1.0
-        box_pose.pose.position.z = 0.11  # above the panda_hand frame
+        box_pose.header.frame_id = "panda_hand"  # Указываем, что положение задается относительно "panda_hand".
+        box_pose.pose.orientation.w = 1.0       # Устанавливаем ориентацию без поворота (единичный кватернион).
+        box_pose.pose.position.z = 0.11         # Задаем смещение по оси z (над "panda_hand").
+
+        # Имя объекта коробки.
         box_name = "box"
+
+        # Добавляем коробку в сцену с помощью метода `add_box`.
+        # Указываем имя, позу и размеры коробки (0.075 x 0.075 x 0.075 м).
         scene.add_box(box_name, box_pose, size=(0.075, 0.075, 0.075))
 
-        ## END_SUB_TUTORIAL
-        # Copy local variables back to class variables. In practice, you should use the class
-        # variables directly unless you have a good reason not to.
+        # Сохраняем имя коробки как атрибут класса.
+        # На практике можно использовать self.box_name напрямую.
         self.box_name = box_name
+
+        # Ждем, пока объект не будет добавлен в сцену, проверяя это с помощью функции wait_for_state_update.
         return self.wait_for_state_update(box_is_known=True, timeout=timeout)
 
     def attach_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        robot = self.robot
-        scene = self.scene
-        eef_link = self.eef_link
-        group_names = self.group_names
+        """
+        Функция для прикрепления объекта (коробки) к конечному эффектору робота.
+        Это позволяет роботу взаимодействовать с объектом (например, захватывать его),
+        игнорируя столкновения между коробкой и частями захвата.
 
-        ## BEGIN_SUB_TUTORIAL attach_object
+        @param timeout: Максимальное время ожидания обновления состояния сцены (в секундах).
+        @return: True, если объект успешно прикреплен к роботу в течение указанного времени.
+        """
+
+        # Локальные копии переменных для удобства понимания.
+        # На практике можно использовать атрибуты класса (self.box_name, self.robot и т. д.) напрямую.
+        box_name = self.box_name  # Имя объекта (коробки), который нужно прикрепить.
+        robot = self.robot        # Экземпляр RobotCommander для управления роботом.
+        scene = self.scene        # Экземпляр PlanningSceneInterface для управления сценой.
+        eef_link = self.eef_link  # Звено конечного эффектора, к которому будет прикреплен объект.
+        group_names = self.group_names  # Список групп планирования для текущего робота.
+
         ##
-        ## Attaching Objects to the Robot
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## Next, we will attach the box to the Panda wrist. Manipulating objects requires the
-        ## robot be able to touch them without the planning scene reporting the contact as a
-        ## collision. By adding link names to the ``touch_links`` array, we are telling the
-        ## planning scene to ignore collisions between those links and the box. For the Panda
-        ## robot, we set ``grasping_group = 'hand'``. If you are using a different robot,
-        ## you should change this value to the name of your end effector group name.
-        grasping_group = "panda_hand"
-        touch_links = robot.get_link_names(group=grasping_group)
-        scene.attach_box(eef_link, box_name, touch_links=touch_links)
-        ## END_SUB_TUTORIAL
+        ## Прикрепление объектов к роботу
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Следующим шагом будет прикрепление коробки к запястью робота.
+        ## Для манипуляции объектами роботу нужно уметь касаться их, не вызывая
+        ## ошибок столкновения. Чтобы игнорировать столкновения между коробкой и
+        ## частями захвата, мы указываем звенья, которые можно "касаться" объекта
+        ## в массиве ``touch_links``.
 
-        # We wait for the planning scene to update.
+        # Имя группы захвата. Для Panda-робота это "panda_hand".
+        # Если используется другой робот, измените это имя на название группы
+        # вашего конечного эффектора.
+        grasping_group = "panda_hand"
+
+        # Получаем список звеньев, связанных с группой захвата.
+        # Эти звенья будут добавлены в массив `touch_links`, чтобы столкновения между
+        # этими звеньями и коробкой игнорировались.
+        touch_links = robot.get_link_names(group=grasping_group)
+
+        # Прикрепляем объект к звену конечного эффектора (eef_link).
+        # touch_links указывает звенья, которые могут касаться коробки без учета столкновений.
+        scene.attach_box(eef_link, box_name, touch_links=touch_links)
+
+        # Ожидаем обновления состояния сцены, чтобы убедиться, что объект успешно прикреплен.
         return self.wait_for_state_update(
-            box_is_attached=True, box_is_known=False, timeout=timeout
+            box_is_attached=True,  # Коробка должна быть прикреплена.
+            box_is_known=False,    # Коробка больше не должна быть в списке известных объектов сцены.
+            timeout=timeout        # Максимальное время ожидания (в секундах).
         )
 
     def detach_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        scene = self.scene
-        eef_link = self.eef_link
+        """
+        Функция для отсоединения объекта (коробки) от конечного эффектора робота.
+        После отсоединения объект больше не является прикрепленным к роботу, но остается
+        известным объектом в сцене.
 
-        ## BEGIN_SUB_TUTORIAL detach_object
+        @param timeout: Максимальное время ожидания обновления состояния сцены (в секундах).
+        @return: True, если объект успешно отсоединен в течение указанного времени.
+        """
+
+        # Локальные копии переменных для удобства.
+        box_name = self.box_name  # Имя объекта (коробки), который нужно отсоединить.
+        scene = self.scene        # Экземпляр PlanningSceneInterface для управления сценой.
+        eef_link = self.eef_link  # Звено конечного эффектора, от которого отсоединяется объект.
+
         ##
-        ## Detaching Objects from the Robot
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## We can also detach and remove the object from the planning scene:
-        scene.remove_attached_object(eef_link, name=box_name)
-        ## END_SUB_TUTORIAL
+        ## Отсоединение объектов от робота
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Вы можете отсоединить объект от конечного эффектора и вернуть его в планировочную сцену.
 
-        # We wait for the planning scene to update.
+        # Удаляем объект из прикрепленных к звену конечного эффектора.
+        # После этого объект становится "известным" в сцене, но уже не прикрепленным.
+        scene.remove_attached_object(eef_link, name=box_name)
+
+        # Ожидаем обновления состояния сцены, чтобы убедиться, что объект отсоединен.
         return self.wait_for_state_update(
-            box_is_known=True, box_is_attached=False, timeout=timeout
+            box_is_known=True,   # Объект должен стать известным (появится в списке известных объектов).
+            box_is_attached=False,  # Объект больше не прикреплен.
+            timeout=timeout      # Максимальное время ожидания.
         )
+
 
     def remove_box(self, timeout=4):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        box_name = self.box_name
-        scene = self.scene
+        """
+        Функция для удаления объекта (коробки) из планировочной сцены.
+        Перед удалением объект должен быть отсоединен от робота (если был прикреплен).
 
-        ## BEGIN_SUB_TUTORIAL remove_object
+        @param timeout: Максимальное время ожидания обновления состояния сцены (в секундах).
+        @return: True, если объект успешно удален из сцены в течение указанного времени.
+        """
+
+        # Локальные копии переменных для удобства.
+        box_name = self.box_name  # Имя объекта (коробки), который нужно удалить.
+        scene = self.scene        # Экземпляр PlanningSceneInterface для управления сценой.
+
         ##
-        ## Removing Objects from the Planning Scene
-        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        ## We can remove the box from the world.
+        ## Удаление объектов из планировочной сцены
+        ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ## Вы можете удалить объект из мира (планировочной сцены).
+
+        # Удаляем объект из мира.
         scene.remove_world_object(box_name)
 
-        ## **Note:** The object must be detached before we can remove it from the world
-        ## END_SUB_TUTORIAL
+        ## **Примечание:** Объект должен быть отсоединен, прежде чем он может быть удален.
 
-        # We wait for the planning scene to update.
+        # Ожидаем обновления состояния сцены, чтобы убедиться, что объект удален.
         return self.wait_for_state_update(
-            box_is_attached=False, box_is_known=False, timeout=timeout
+            box_is_attached=False,  # Объект не должен быть прикреплен.
+            box_is_known=False,     # Объект больше не должен быть известным в сцене.
+            timeout=timeout         # Максимальное время ожидания.
         )
 
-
 def main():
+    """
+    Главная функция, демонстрирующая использование интерфейса MoveIt MoveGroup с помощью Python.
+    Последовательно выполняет различные задачи: движение робота, управление траекториями,
+    взаимодействие с объектами в планировочной сцене.
+    """
+
     try:
+        # Введение в демонстрацию.
         print("")
         print("----------------------------------------------------------")
         print("Welcome to the MoveIt MoveGroup Python Interface Tutorial")
         print("----------------------------------------------------------")
         print("Press Ctrl-D to exit at any time")
         print("")
+
+        # Ожидание пользователя для начала демонстрации.
         input(
             "============ Press `Enter` to begin the tutorial by setting up the moveit_commander ..."
         )
+
+        # Создание объекта класса MoveGroupPythonInterfaceTutorial.
+        # Этот объект содержит все методы управления роботом и сценой.
         tutorial = MoveGroupPythonInterfaceTutorial()
 
+        # Демонстрация движения к целевому состоянию суставов.
         input(
             "============ Press `Enter` to execute a movement using a joint state goal ..."
         )
         tutorial.go_to_joint_state()
 
+        # Демонстрация движения к целевой позе в пространстве.
         input("============ Press `Enter` to execute a movement using a pose goal ...")
         tutorial.go_to_pose_goal()
 
+        # Планирование и отображение декартовой траектории.
         input("============ Press `Enter` to plan and display a Cartesian path ...")
         cartesian_plan, fraction = tutorial.plan_cartesian_path()
 
+        # Отображение сохраненной траектории в Rviz.
         input(
             "============ Press `Enter` to display a saved trajectory (this will replay the Cartesian path)  ..."
         )
         tutorial.display_trajectory(cartesian_plan)
 
+        # Выполнение сохраненной траектории.
         input("============ Press `Enter` to execute a saved path ...")
         tutorial.execute_plan(cartesian_plan)
 
+        # Добавление объекта (коробки) в планировочную сцену.
         input("============ Press `Enter` to add a box to the planning scene ...")
         tutorial.add_box()
 
+        # Прикрепление объекта к роботу.
         input("============ Press `Enter` to attach a Box to the Panda robot ...")
         tutorial.attach_box()
 
+        # Планирование и выполнение траектории с прикрепленным объектом.
         input(
             "============ Press `Enter` to plan and execute a path with an attached collision object ..."
         )
         cartesian_plan, fraction = tutorial.plan_cartesian_path(scale=-1)
         tutorial.execute_plan(cartesian_plan)
 
+        # Отсоединение объекта от робота.
         input("============ Press `Enter` to detach the box from the Panda robot ...")
         tutorial.detach_box()
 
+        # Удаление объекта из планировочной сцены.
         input(
             "============ Press `Enter` to remove the box from the planning scene ..."
         )
         tutorial.remove_box()
 
+        # Завершение демонстрации.
         print("============ Python tutorial demo complete!")
+
+    # Обработка исключений при прерывании работы ROS.
     except rospy.ROSInterruptException:
         return
+
+    # Обработка прерывания программы с клавиатуры.
     except KeyboardInterrupt:
         return
 
 
+# Проверяем, что модуль запускается как основная программа.
 if __name__ == "__main__":
     main()
-
-## BEGIN_TUTORIAL
-## .. _moveit_commander:
-##    http://docs.ros.org/noetic/api/moveit_commander/html/namespacemoveit__commander.html
-##
-## .. _MoveGroupCommander:
-##    http://docs.ros.org/noetic/api/moveit_commander/html/classmoveit__commander_1_1move__group_1_1MoveGroupCommander.html
-##
-## .. _RobotCommander:
-##    http://docs.ros.org/noetic/api/moveit_commander/html/classmoveit__commander_1_1robot_1_1RobotCommander.html
-##
-## .. _PlanningSceneInterface:
-##    http://docs.ros.org/noetic/api/moveit_commander/html/classmoveit__commander_1_1planning__scene__interface_1_1PlanningSceneInterface.html
-##
-## .. _DisplayTrajectory:
-##    http://docs.ros.org/noetic/api/moveit_msgs/html/msg/DisplayTrajectory.html
-##
-## .. _RobotTrajectory:
-##    http://docs.ros.org/noetic/api/moveit_msgs/html/msg/RobotTrajectory.html
-##
-## .. _rospy:
-##    http://docs.ros.org/noetic/api/rospy/html/
-## CALL_SUB_TUTORIAL imports
-## CALL_SUB_TUTORIAL setup
-## CALL_SUB_TUTORIAL basic_info
-## CALL_SUB_TUTORIAL plan_to_joint_state
-## CALL_SUB_TUTORIAL plan_to_pose
-## CALL_SUB_TUTORIAL plan_cartesian_path
-## CALL_SUB_TUTORIAL display_trajectory
-## CALL_SUB_TUTORIAL execute_plan
-## CALL_SUB_TUTORIAL add_box
-## CALL_SUB_TUTORIAL wait_for_scene_update
-## CALL_SUB_TUTORIAL attach_object
-## CALL_SUB_TUTORIAL detach_object
-## CALL_SUB_TUTORIAL remove_object
-## END_TUTORIAL
