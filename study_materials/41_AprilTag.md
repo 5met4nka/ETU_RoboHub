@@ -30,6 +30,34 @@ sudo apt install ros-noetic-apriltag ros-noetic-apriltag-ros
 
 Эти пакеты содержат необходимые инструменты для детектирования маркеров и взаимодействия с ними через ROS.
 
+Дополнительно, для работы с камерой глубины, мы должны добавить в наш пакет launch-файл запуска драйвера камеры. Содержимое файла можно найти по [ссылке](https://github.com/lasauveetgarde/Basics_of_ROS_for_IndustrialRobotics/blob/master/source/driver_realsense.launch), его нужно скопировать в файл `driver_realsense.launch` нашего пакета. Также для запуска камеры рекомендуется создать отдельный лаунч файл с названием `start_rs_camera.launch` и следующим содержимым:
+
+```xml
+<?xml version="1.0"?>
+<launch>
+  <group ns="rs_camera">
+    <include file="$(find study_pkg)/launch/driver_realsense.launch">
+      <arg name="tf_prefix" value="rs_camera" />
+      <arg name="align_depth" value="true" /> 
+      <arg name="linear_accel_cov" value="0.01" />
+      <arg name="unite_imu_method" value="copy" />
+      <arg name="depth_fps" value="30" />
+      <arg name="color_fps" value="30" />
+      <arg name="enable_gyro" value="true" />
+      <arg name="enable_accel" value="true" />
+      <arg name="initial_reset" default="false" />
+    </include>
+
+    <node pkg="nodelet" type="nodelet" name="rgbd_sync" args="load rtabmap_sync/rgbd_sync realsense2_camera_manager" output="screen">
+        <remap from="rgb/image" to="color/image_raw" />
+        <remap from="depth/image" to="aligned_depth_to_color/image_raw" />
+        <remap from="rgb/camera_info" to="color/camera_info" />
+        <param name="approx_sync" value="false" />
+      </node>
+  </group>
+</launch>
+```
+
 ---
 
 # Создание и настройка лаунч-файла
@@ -136,7 +164,7 @@ roslaunch study_pkg detect_apriltag.launch
 
 ## Задание
 
-Запусти `rviz`, настрой отображение так, чтобы тэги были видны на изображении с камеры и в основной сцене с помощью инструментов визуализации `tf`.
+Запусти `rviz`. Далее, настрой отображение так, чтобы тэги были видны на изображении с камеры и в основной сцене с помощью инструментов визуализации `tf`.
 
 ## Заключение
 
