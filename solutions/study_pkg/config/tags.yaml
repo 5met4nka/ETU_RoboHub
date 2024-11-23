@@ -1,0 +1,20 @@
+# table example
+standalone_tags:
+  [
+    {id: 0, size: 0.058},
+    {id: 1, size: 0.058},
+    {id: 2, size: 0.058},
+    {id: 3, size: 0.058},
+    {id: 4, size: 0.058},
+    {id: 5, size: 0.087}
+  ]
+
+# manipulator example
+# standalone_tags:
+#   [
+#     {id: 0, size: 0.047},
+#     {id: 1, size: 0.047},
+#     {id: 2, size: 0.047},
+#     {id: 3, size: 0.047},
+#     {id: 4, size: 0.047}
+#   ]

@@ -1,0 +1,16 @@
+<launch>
+
+    <!-- Узел для непрерывного детектирования -->
+    <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="apriltag_ros_continuous_node" clear_params="true" output="screen">
+        <!-- Переназначение топиков -->
+        <remap from="image_rect" to="/rs_camera/color/image_raw" />
+        <remap from="camera_info" to="/rs_camera/color/camera_info" />
+
+        <param name="publish_tag_detections_image" type="bool" value="true" /><!-- default: false -->
+
+        <!-- Загрузка параметров -->
+        <rosparam command="load" file="$(find study_pkg)/config/settings.yaml" />
+        <rosparam command="load" file="$(find study_pkg)/config/tags.yaml" />
+    </node>
+
+</launch>
